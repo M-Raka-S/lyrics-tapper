@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Lyrics Tapper — enhanced LRC</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;700&family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#E8EBF1; --panel:#F7F8FB; --ink:#1E2333; --muted:#6B7287; --line:#CDD2DE;
+  --todo:#9AA1B4; --done:#24705F; --cursor:#5A46D6; --cursor-ink:#fff; --sung:#C2385A;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#171A24; --panel:#20242F; --ink:#E6E8F0; --muted:#9097AB; --line:#343A4A;
+    --todo:#636A80; --done:#5FC7AE; --cursor:#8C7CFF; --cursor-ink:#120E2A; --sung:#FF7A98;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#171A24; --panel:#20242F; --ink:#E6E8F0; --muted:#9097AB; --line:#343A4A;
+  --todo:#636A80; --done:#5FC7AE; --cursor:#8C7CFF; --cursor-ink:#120E2A; --sung:#FF7A98;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 Figtree,system-ui,sans-serif}
+button,select,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:1px solid var(--line);background:var(--panel);border-radius:6px;padding:.4rem .75rem}
+button:hover{border-color:var(--muted)}
+button.primary{background:var(--cursor);color:var(--cursor-ink);border-color:var(--cursor);font-weight:700}
+:focus-visible{outline:2px solid var(--cursor);outline-offset:2px}
+
+header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--panel);border-bottom:1px solid var(--line);padding:.6rem 1rem}
+.bar{display:flex;flex-wrap:wrap;gap:.5rem 1rem;align-items:center;max-width:1300px;margin:0 auto}
+.bar h1{font-size:1.05rem;margin:0 .5rem 0 0;font-weight:700}
+.time{font-variant-numeric:tabular-nums;font-weight:700;min-width:7.5em}
+.ctl{display:flex;align-items:center;gap:.35rem;color:var(--muted);font-size:.9rem}
+.ctl input[type=number]{width:5.5em;padding:.3rem;border:1px solid var(--line);border-radius:6px;background:var(--bg)}
+.ctl select{padding:.3rem;border:1px solid var(--line);border-radius:6px;background:var(--bg)}
+#seek{flex:1 1 220px;accent-color:var(--cursor)}
+.filebtn{position:relative;overflow:hidden}
+.filebtn input{position:absolute;inset:0;opacity:0;cursor:pointer}
+
+main{max-width:1300px;margin:0 auto;padding:1rem;display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:1rem}
+@media (max-width:900px){main{grid-template-columns:1fr}}
+section{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:1rem;min-width:0}
+h2{font-size:.95rem;margin:0 0 .5rem;font-weight:700}
+.hint{color:var(--muted);font-size:.85rem;margin:.25rem 0 .75rem}
+kbd{font:600 .78rem Figtree,sans-serif;border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 .35em;background:var(--bg)}
+
+#lyrics{font-family:"Noto Sans JP",Figtree,sans-serif;font-size:1.15rem;max-height:calc(100vh - 210px);overflow:auto;padding-right:.25rem}
+.lrow{display:grid;grid-template-columns:5.2em 1fr;gap:.6rem;padding:.35rem .25rem;border-radius:6px}
+.lrow.active{background:var(--bg)}
+.lrow .lt{font:500 .78rem Figtree,sans-serif;color:var(--muted);font-variant-numeric:tabular-nums;padding-top:.35rem}
+.words{display:flex;flex-wrap:wrap;gap:.15rem .1rem;align-items:baseline}
+.w{border:0;background:none;padding:.05rem .2rem;border-radius:4px;color:var(--todo);font-size:inherit;line-height:1.5}
+.w.sp{margin-right:.35em}
+.w.done{color:var(--done)}
+.w.sung{color:var(--sung)}
+.w.cur{background:var(--cursor);color:var(--cursor-ink)}
+.endmark{font:600 .72rem Figtree,sans-serif;color:var(--todo);border:1px dashed var(--line);border-radius:4px;padding:0 .35em;margin-left:.3rem;align-self:center}
+.endmark.done{color:var(--done);border-style:solid}
+.endmark.cur{background:var(--cursor);color:var(--cursor-ink);border-color:var(--cursor)}
+.empty{color:var(--muted);padding:2rem 0;text-align:center}
+
+textarea{width:100%;border:1px solid var(--line);border-radius:6px;background:var(--bg);padding:.6rem;font:13px/1.45 "Noto Sans JP",ui-monospace,monospace;resize:vertical}
+.row{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;margin:.5rem 0}
+label.chk{display:flex;gap:.4rem;align-items:center;font-size:.9rem}
+.side{display:flex;flex-direction:column;gap:1rem}
+
+.pad{display:none;gap:.5rem;margin-top:.75rem}
+.pad button{flex:1;padding:1rem .5rem;font-weight:700}
+@media (hover:none){.pad{display:flex}}
+#status{font-size:.85rem;color:var(--muted);min-height:1.3em}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <h1>Lyrics Tapper</h1>
+    <span class="filebtn"><button tabindex="-1">Open audio…</button><input id="audioFile" type="file" accept="audio/*,video/*" aria-label="Open audio file"></span>
+    <button id="playBtn" disabled>Play</button>
+    <span class="time" id="time">00:00.00 / 00:00</span>
+    <input id="seek" type="range" min="0" max="1" step="0.01" value="0" disabled aria-label="Seek">
+    <label class="ctl">Speed
+      <select id="rate"><option>0.5</option><option>0.6</option><option>0.75</option><option selected>1</option></select>
+    </label>
+    <label class="ctl" title="Subtracted from every tap to cancel out your reaction time">Reaction offset
+      <input id="offset" type="number" step="10" value="80"> ms
+    </label>
+  </div>
+</header>
+
+<main>
+  <section>
+    <h2>Words</h2>
+    <p class="hint">
+      <kbd>Space</kbd> stamp the highlighted word &nbsp;
+      <kbd>Enter</kbd> mark the end of the line &nbsp;
+      <kbd>Backspace</kbd> undo &nbsp;
+      <kbd>P</kbd> play/pause &nbsp;
+      <kbd>←</kbd><kbd>→</kbd> ±2 s &nbsp;
+      Click a word to jump there; <kbd>Shift</kbd>+click to re-stamp it at the playhead.
+    </p>
+    <div id="lyrics"><div class="empty">Paste lyrics on the right and press Load lyrics.</div></div>
+    <div class="pad">
+      <button id="padUndo">Undo</button>
+      <button id="padEnd">Line end</button>
+      <button id="padTap" class="primary">Tap</button>
+    </div>
+    <div id="status" role="status"></div>
+  </section>
+
+  <div class="side">
+    <section>
+      <h2>Lyrics in</h2>
+      <p class="hint">Plain text or LRC. Existing timestamps are stripped; [ar:], [ti:], [al:] tags are kept. Words are split into syllables automatically. A word you write with <kbd>/</kbd> (e.g. <code>ev/er/more</code>) is split exactly where you put them.</p>
+      <textarea id="src" rows="10" spellcheck="false" placeholder="[ti:Song]&#10;[00:02.63]First line of lyrics&#10;…"></textarea>
+      <div class="row">
+        <button id="loadBtn" class="primary">Load lyrics</button>
+        <span class="filebtn"><button tabindex="-1">Open .lrc/.txt…</button><input id="lrcFile" type="file" accept=".lrc,.txt,text/plain" aria-label="Open lyrics file"></span>
+      </div>
+      <label class="chk"><input id="autoSyl" type="checkbox" checked> Split English words into syllables</label>
+      <label class="chk"><input id="cjk" type="checkbox" checked> Split Japanese/Chinese into single characters</label>
+      <div class="row"><button id="writeSplits">Show splits in the lyrics so I can fix them</button></div>
+    </section>
+
+    <section>
+      <h2>Enhanced LRC out</h2>
+      <textarea id="out" rows="12" readonly spellcheck="false"></textarea>
+      <div class="row">
+        <button id="copyBtn">Copy</button>
+        <label class="chk"><input id="lineEndTag" type="checkbox" checked> Add end time to each line</label>
+      </div>
+    </section>
+  </div>
+</main>
+
+<audio id="audio" preload="auto"></audio>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const audio = $('audio');
+  let meta = [], lines = [], cur = {li:0, wi:0}, history = [], storeKey = null;
+  let flat = [], activeIdx = -1, activeLine = -1;
+
+  // ---------- helpers ----------
+  const fmt = t => {
+    const cs = Math.max(0, Math.round(t * 100));
+    const m = Math.floor(cs / 6000), s = (cs % 6000) / 100;
+    return String(m).padStart(2,'0') + ':' + s.toFixed(2).padStart(5,'0');
+  };
+  const parseTs = s => { const m = s.match(/(\d+):(\d+(?:\.\d+)?)/); return m ? +m[1]*60 + +m[2] : null; };
+  const hash = s => { let h = 2166136261; for (let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619);} return (h>>>0).toString(36); };
+  const offsetSec = () => (parseFloat($('offset').value) || 0) / 1000;
+  const status = msg => { $('status').textContent = msg; };
+  const CJK = /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uac00-\ud7af]/;
+
+  // ---------- English syllables (rule-based) ----------
+  const ONSETS = new Set(('b c d f g h j k l m n p q r s t v w y z ch sh th ph wh qu gh bl br cl cr dr fl fr gl gr pl pr sc sk sl sm sn sp st sw tr tw wr str scr spr spl squ thr shr sch chr phr').split(' '));
+  const DIG = ['ch','sh','th','ph','wh','ck','ng','qu','gh'];
+  const BLENDS = new Set('bl br cl cr dr fl fr gl gr pl pr tr tw wr thr shr chr phr str scr spr spl'.split(' '));
+  const SYL_EXCEPT = {maybe:[3], hundred:[3], sacred:[2], naked:[2], wicked:[3], kindred:[4]};
+  function vowelGroups(s){
+    const isV = i => {
+      const c = s[i]; if (!c) return false;
+      if ('aeiou'.includes(c)) return true;
+      if (c !== 'y' || i === 0) return false;
+      return !('aeiou'.includes(s[i-1]) && 'aeiou'.includes(s[i+1] || ''));
+    };
+    const runs = []; let i = 0;
+    while (i < s.length){ if (isV(i)){ let j = i; while (j < s.length && isV(j)) j++; runs.push([i,j]); i = j; } else i++; }
+    const out = [];
+    runs.forEach(([a,b]) => {
+      const cuts = [];
+      for (let k = a; k < b - 1; k++){
+        const pair = s.slice(k, k+2), before = k === a ? (s[a-1] || '') : s[k-1];
+        if (s[k] === 'y') cuts.push(k+1);
+        else if (/^i[aou]$/.test(pair) && !'tscxg'.includes(before || '#')) cuts.push(k+1);
+        else if (/^u[ao]$/.test(pair) && !'qg'.includes(before || '#')) cuts.push(k+1);
+        else if (pair === 'ie' && k+2 === b && (s[b] === 't' || /^rs?$/.test(s.slice(b)))) cuts.push(k+1);
+        else if (s[k+1] === 'i' && k+2 === b && s.slice(b) === 'ng') cuts.push(k+1);
+      }
+      let st = a; cuts.forEach(c => { out.push([st,c]); st = c; }); out.push([st,b]);
+    });
+    return out;
+  }
+  function syllCore(w){
+    const s = w.toLowerCase();
+    if (SYL_EXCEPT[s]) { const r=[]; let p=0; SYL_EXCEPT[s].forEach(c=>{r.push(w.slice(p,c));p=c;}); r.push(w.slice(p)); return r; }
+    let m = s.match(/^(.+)([^aeiouy'\-]l(?:e|ed|es))$/);
+    if (m && /[aeiouy]/.test(m[1])) return [...syllCore(w.slice(0, m[1].length)), w.slice(m[1].length)];
+    m = s.match(/^(.*[aeiouy].*[^aeiouy]e)(ly|ful|less|ness|ment)$/);
+    if (m) return [...syllCore(w.slice(0, m[1].length)), w.slice(m[1].length)];
+    const g = vowelGroups(s);
+    if (g.length > 1){
+      const last = g[g.length-1], lt = s.slice(last[0], last[1]), tail = s.slice(last[1]), head = s.slice(0, last[0]);
+      if (lt === 'e' && (tail === '' || (tail === 'd' && !/[td]$/.test(head)) || (tail === 's' && !/(s|x|z|ch|sh|g|c)$/.test(head)))) g.pop();
+    }
+    if (g.length < 2) return [w];
+    const cuts = [];
+    for (let i = 0; i < g.length - 1; i++){
+      const a = g[i][1], b = g[i+1][0], cl = s.slice(a, b), units = [];
+      for (let k = 0; k < cl.length;){
+        if (cl[k] === "'"){ if (units.length) units[units.length-1] += "'"; else units.push("'"); k++; continue; }
+        const d = cl.slice(k, k+2);
+        if (DIG.includes(d)){ units.push(d); k += 2; } else { units.push(cl[k]); k++; }
+      }
+      let n;
+      if (!units.length) n = 0;
+      else if (units.length === 1) n = (['x','ck','ng','gh'].includes(units[0]) || (units[0] === 'y' && s.slice(b) === 'ing')) ? 1 : 0;
+      else if (BLENDS.has(units.join(''))) n = 0;
+      else { n = ONSETS.has(units.slice(1).join('')) ? 1 : units.length - 1; if (units[0] === 'x') n = Math.max(n, 1); }
+      let pos = a; for (let u = 0; u < n; u++) pos += units[u].length;
+      cuts.push(pos);
+    }
+    const out = []; let p = 0;
+    cuts.forEach(c => { if (c > p) { out.push(w.slice(p, c)); p = c; } });
+    out.push(w.slice(p));
+    return out.filter(Boolean);
+  }
+  function syllabify(word){
+    const m = word.match(/^([^A-Za-z']*)([A-Za-z'](?:[A-Za-z'\-]*[A-Za-z'])?)([^A-Za-z']*)$/);
+    if (!m) return [word];
+    const [, pre, core, post] = m;
+    let parts = [];
+    if (core.includes('-')){
+      const segs = core.split('-');
+      segs.forEach((sg, i) => { const p = sg ? syllCore(sg) : []; if (i < segs.length - 1){ if (p.length) p[p.length-1] += '-'; else p.push('-'); } parts.push(...p); });
+    } else parts = syllCore(core);
+    parts[0] = pre + parts[0]; parts[parts.length-1] += post;
+    return parts;
+  }
+
+  // ---------- parsing ----------
+  function tokenize(text, splitCjk, autoSyl){
+    const out = [];
+    const parts = text.trim().split(/\s+/).filter(Boolean);
+    parts.forEach((part, pi) => {
+      const sylls = (part.includes('/') ? part.split('/')
+        : (autoSyl && /[A-Za-z]/.test(part) && !CJK.test(part)) ? syllabify(part) : [part]).filter(x => x !== '');
+      sylls.forEach((sy, si) => {
+        const lastOfWord = si === sylls.length - 1;
+        const space = lastOfWord && pi < parts.length - 1;
+        if (splitCjk && CJK.test(sy)) {
+          // split CJK characters; attach trailing punctuation/latin to previous char
+          const chars = [...sy]; let buf = [];
+          chars.forEach(c => {
+            if (CJK.test(c) || !buf.length) buf.push(c); else buf[buf.length-1] += c;
+          });
+          buf.forEach((c, ci) => out.push({text:c, space: space && ci === buf.length-1, t:null}));
+        } else out.push({text:sy, space, t:null});
+      });
+    });
+    return out;
+  }
+
+  function parse(src){
+    meta = []; lines = [];
+    const splitCjk = $('cjk').checked, autoSyl = $('autoSyl').checked;
+    src.split(/\r?\n/).forEach(raw => {
+      const line = raw.trim();
+      if (!line) return;
+      if (/^\[[a-z#]+:.*\]$/i.test(line) && !/^\[\d/.test(line)) { meta.push(line); return; }
+      const first = line.match(/^\[(\d+:\d+(?:\.\d+)?)\]/);
+      const text = line.replace(/\[\d+:\d+(?:\.\d+)?\]/g,'').replace(/<\d+:\d+(?:\.\d+)?>/g,'').trim();
+      if (!text) return;
+      const words = tokenize(text, splitCjk, autoSyl);
+      if (words.length) lines.push({orig: first ? parseTs(first[1]) : null, words, end:null});
+    });
+    cur = {li:0, wi:0}; history = [];
+  }
+
+  // ---------- persistence ----------
+  function save(){
+    if (!storeKey) return;
+    try {
+      localStorage.setItem(storeKey, JSON.stringify({
+        t: lines.map(l => l.words.map(w => w.t)), e: lines.map(l => l.end), cur
+      }));
+    } catch(e){}
+  }
+  function restore(){
+    try {
+      const d = JSON.parse(localStorage.getItem(storeKey) || 'null');
+      if (!d || d.t.length !== lines.length) return false;
+      lines.forEach((l,i) => { if (d.t[i].length === l.words.length) { l.words.forEach((w,j)=> w.t = d.t[i][j]); l.end = d.e[i]; } });
+      if (d.cur) cur = d.cur;
+      return true;
+    } catch(e){ return false; }
+  }
+
+  // ---------- rendering ----------
+  function render(){
+    const box = $('lyrics'); box.innerHTML = ''; flat = [];
+    if (!lines.length){ box.innerHTML = '<div class="empty">Paste lyrics on the right and press Load lyrics.</div>'; return; }
+    lines.forEach((l, li) => {
+      const row = document.createElement('div'); row.className = 'lrow'; row.dataset.li = li;
+      const lt = document.createElement('div'); lt.className = 'lt';
+      const ws = document.createElement('div'); ws.className = 'words';
+      l.words.forEach((w, wi) => {
+        const b = document.createElement('button'); b.className = 'w' + (w.space ? ' sp':'');
+        b.textContent = w.text; b.dataset.li = li; b.dataset.wi = wi; b.tabIndex = -1;
+        ws.appendChild(b); w.el = b; flat.push({li, wi, w});
+      });
+      const em = document.createElement('span'); em.className = 'endmark'; em.textContent = 'end'; em.dataset.li = li; em.dataset.wi = l.words.length;
+      ws.appendChild(em); l.endEl = em; l.row = row; l.ltEl = lt;
+      row.append(lt, ws); box.appendChild(row);
+    });
+    refresh();
+  }
+
+  function refresh(scroll = true){
+    lines.forEach((l, li) => {
+      l.words.forEach((w, wi) => {
+        w.el.classList.toggle('done', w.t != null);
+        w.el.classList.toggle('cur', li === cur.li && wi === cur.wi);
+        w.el.title = w.t != null ? fmt(w.t) : '';
+      });
+      l.endEl.classList.toggle('done', l.end != null);
+      l.endEl.classList.toggle('cur', li === cur.li && cur.wi === l.words.length);
+      l.endEl.textContent = l.end != null ? 'end ' + fmt(l.end) : 'end';
+      const st = l.words[0].t ?? l.orig;
+      l.ltEl.textContent = st != null ? fmt(st) : '—';
+      l.row.classList.toggle('active', li === cur.li);
+    });
+    if (scroll && lines[cur.li]) lines[cur.li].row.scrollIntoView({block:'center', behavior:'smooth'});
+    writeOut(); save();
+  }
+
+  function writeOut(){
+    const addEnd = $('lineEndTag').checked;
+    const out = [...meta];
+    lines.forEach((l, li) => {
+      const start = l.words[0].t ?? l.orig;
+      let s = start != null ? `[${fmt(start)}]` : '';
+      l.words.forEach(w => { s += (w.t != null ? `<${fmt(w.t)}>` : '') + w.text + (w.space ? ' ' : ''); });
+      if (addEnd){
+        const next = lines[li+1];
+        const end = l.end ?? (next ? (next.words[0].t ?? null) : null);
+        if (end != null && l.words.some(w => w.t != null)) s += `<${fmt(end)}>`;
+      }
+      out.push(s);
+    });
+    $('out').value = out.join('\n');
+  }
+
+  // ---------- tapping ----------
+  const now = () => Math.max(0, audio.currentTime - offsetSec());
+
+  function tap(){
+    if (!lines.length) return;
+    let {li, wi} = cur;
+    if (wi >= lines[li].words.length){ if (li + 1 >= lines.length) { status('All words are stamped.'); return; } li++; wi = 0; }
+    const w = lines[li].words[wi];
+    history.push({kind:'w', li, wi, prev:w.t, cur:{...cur}});
+    w.t = now();
+    // after the last word, skip the "end" slot and go straight to the next line
+    if (wi + 1 >= lines[li].words.length && li + 1 < lines.length) cur = {li: li + 1, wi: 0};
+    else cur = {li, wi: wi + 1};
+    refresh();
+  }
+
+  function lineEnd(){
+    if (!lines.length) return;
+    let li = cur.li;
+    if (cur.wi === 0 && li > 0) li--;          // nothing tapped yet on this line → end the previous one
+    const l = lines[li];
+    history.push({kind:'e', li, prev:l.end, cur:{...cur}});
+    l.end = now();
+    if (li === cur.li && li + 1 < lines.length) cur = {li: li + 1, wi: 0};
+    else if (li === cur.li) cur = {li, wi: l.words.length};
+    refresh();
+  }
+
+  function undo(){
+    const h = history.pop();
+    if (!h){ status('Nothing to undo.'); return; }
+    const target = h.kind === 'w' ? lines[h.li].words[h.wi] : lines[h.li];
+    const key = h.kind === 'w' ? 't' : 'end';
+    const was = target[key];
+    target[key] = h.prev; cur = h.cur;
+    if (was != null) audio.currentTime = Math.max(0, was - 1.5);
+    refresh();
+  }
+
+  // ---------- audio ----------
+  function loadAudio(file){
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    audio.onerror = () => {
+      // fall back to a data: URL if blob URLs are blocked
+      const r = new FileReader();
+      r.onload = () => { audio.onerror = () => status('This audio file could not be played. Try MP3, M4A, OGG or WAV.'); audio.src = r.result; };
+      r.readAsDataURL(file);
+    };
+    audio.src = url;
+    status('Loaded ' + file.name);
+  }
+  audio.addEventListener('loadedmetadata', () => {
+    $('seek').max = audio.duration || 1; $('seek').disabled = false; $('playBtn').disabled = false;
+    audio.playbackRate = +$('rate').value;
+  });
+  audio.addEventListener('play', () => $('playBtn').textContent = 'Pause');
+  audio.addEventListener('pause', () => $('playBtn').textContent = 'Play');
+  const togglePlay = () => { if (!audio.src) return; audio.paused ? audio.play() : audio.pause(); };
+
+  let seeking = false;
+  $('seek').addEventListener('input', e => { seeking = true; audio.currentTime = +e.target.value; });
+  $('seek').addEventListener('change', () => seeking = false);
+
+  function tick(){
+    const t = audio.currentTime || 0, d = audio.duration || 0;
+    $('time').textContent = fmt(t) + ' / ' + (d ? fmt(d).slice(0,5) : '00:00');
+    if (!seeking) $('seek').value = t;
+    // karaoke preview of already-stamped words
+    let idx = -1;
+    for (let i = 0; i < flat.length; i++){ const tt = flat[i].w.t; if (tt != null && tt <= t) idx = i; else if (tt != null && tt > t) break; }
+    if (idx !== activeIdx){
+      if (activeIdx >= 0 && flat[activeIdx]) flat[activeIdx].w.el.classList.remove('sung');
+      if (idx >= 0 && !audio.paused) flat[idx].w.el.classList.add('sung');
+      activeIdx = idx;
+    }
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+
+  // ---------- events ----------
+  $('audioFile').addEventListener('change', e => loadAudio(e.target.files[0]));
+  $('lrcFile').addEventListener('change', e => {
+    const f = e.target.files[0]; if (!f) return;
+    f.text().then(txt => { $('src').value = txt; });
+  });
+  $('playBtn').addEventListener('click', togglePlay);
+  $('rate').addEventListener('change', e => audio.playbackRate = +e.target.value);
+  $('offset').addEventListener('change', () => { try{ localStorage.setItem('lrc-tapper:offset', $('offset').value);}catch(e){} });
+  $('lineEndTag').addEventListener('change', writeOut);
+
+  $('loadBtn').addEventListener('click', () => {
+    const src = $('src').value;
+    if (!src.trim()){ status('Paste some lyrics first.'); return; }
+    parse(src);
+    storeKey = 'lrc-tapper:' + hash(src + '|' + $('cjk').checked + '|' + $('autoSyl').checked);
+    const restored = restore();
+    render();
+    status(restored ? 'Restored your earlier progress for these lyrics.' : `Loaded ${lines.length} lines. Play the audio and press Space on each word.`);
+  });
+
+  $('writeSplits').addEventListener('click', () => {
+    const src = $('src').value;
+    if (!src.trim()){ status('Paste some lyrics first.'); return; }
+    $('src').value = src.split(/\r?\n/).map(line => {
+      const t = line.trim();
+      if (/^\[[a-z#]+:.*\]$/i.test(t) && !/^\[\d/.test(t)) return line;
+      const m = line.match(/^((?:\s*\[\d+:\d+(?:\.\d+)?\])*)(.*)$/);
+      const text = m[2].replace(/<\d+:\d+(?:\.\d+)?>/g, '');
+      return m[1] + text.split(/(\s+)/).map(tok =>
+        (!tok || /\s/.test(tok) || tok.includes('/') || !/[A-Za-z]/.test(tok)) ? tok : syllabify(tok).join('/')).join('');
+    }).join('\n');
+    $('autoSyl').checked = false;
+    status('Syllable splits are now written into the lyrics. Fix any you disagree with, then press Load lyrics.');
+  });
+
+  $('copyBtn').addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText($('out').value); status('Copied to clipboard.'); }
+    catch(e){ $('out').select(); document.execCommand && document.execCommand('copy'); status('Copied to clipboard.'); }
+  });
+
+  $('lyrics').addEventListener('click', e => {
+    const el = e.target.closest('[data-wi]'); if (!el) return;
+    const li = +el.dataset.li, wi = +el.dataset.wi, l = lines[li];
+    if (e.shiftKey && wi < l.words.length){
+      const w = l.words[wi]; history.push({kind:'w', li, wi, prev:w.t, cur:{...cur}}); w.t = now(); refresh(false); return;
+    }
+    if (e.shiftKey){ history.push({kind:'e', li, prev:l.end, cur:{...cur}}); l.end = now(); refresh(false); return; }
+    cur = {li, wi};
+    // jump to just before this point so you can re-tap from here
+    let ref = wi < l.words.length ? l.words[wi].t : l.end;
+    if (ref == null){ for (let i = flat.findIndex(f => f.li===li && f.wi===Math.min(wi, l.words.length-1)); i >= 0; i--){ if (flat[i].w.t != null){ ref = flat[i].w.t; break; } } }
+    if (ref == null) ref = l.orig;
+    if (ref != null && audio.src) audio.currentTime = Math.max(0, ref - 1.5);
+    refresh(false);
+  });
+
+  $('padTap').addEventListener('click', tap);
+  $('padEnd').addEventListener('click', lineEnd);
+  $('padUndo').addEventListener('click', undo);
+
+  document.addEventListener('keydown', e => {
+    const tag = (e.target.tagName || '').toLowerCase();
+    if (tag === 'textarea' || (tag === 'input' && e.target.type !== 'range' && e.target.type !== 'checkbox' && e.target.type !== 'file')) return;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    switch (e.key){
+      case ' ': e.preventDefault(); if (!e.repeat) tap(); break;
+      case 'Enter': e.preventDefault(); if (!e.repeat) lineEnd(); break;
+      case 'Backspace': case 'z': case 'Z': e.preventDefault(); undo(); break;
+      case 'p': case 'P': case 'k': case 'K': e.preventDefault(); togglePlay(); break;
+      case 'ArrowLeft': e.preventDefault(); audio.currentTime = Math.max(0, audio.currentTime - (e.shiftKey?5:2)); break;
+      case 'ArrowRight': e.preventDefault(); audio.currentTime = audio.currentTime + (e.shiftKey?5:2); break;
+    }
+  });
+
+  // drag & drop audio or lyrics anywhere
+  document.addEventListener('dragover', e => e.preventDefault());
+  document.addEventListener('drop', e => {
+    e.preventDefault();
+    [...e.dataTransfer.files].forEach(f => {
+      if (/^(audio|video)\//.test(f.type)) loadAudio(f);
+      else f.text().then(t => $('src').value = t);
+    });
+  });
+
+  try { const o = localStorage.getItem('lrc-tapper:offset'); if (o != null) $('offset').value = o; } catch(e){}
+})();
+</script>
+</body>
+</html>
