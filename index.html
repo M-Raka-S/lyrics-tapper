@@ -1,9 +1,10 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Lyrics Tapper — enhanced LRC</title>
+<title>Lyrics Tapper</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;700&family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
 <style>
@@ -50,7 +51,7 @@ h2{font-size:.95rem;margin:0 0 .5rem;font-weight:700}
 .hint{color:var(--muted);font-size:.85rem;margin:.25rem 0 .75rem}
 kbd{font:600 .78rem Figtree,sans-serif;border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 .35em;background:var(--bg)}
 
-#lyrics{font-family:"Noto Sans JP",Figtree,sans-serif;font-size:1.15rem;max-height:calc(100vh - 210px);overflow:auto;padding-right:.25rem}
+#lyrics{font-family:"Noto Sans JP",Figtree,sans-serif;font-size:1.15rem;max-height:max(260px, calc(100vh - 420px));overflow:auto;padding-right:.25rem}
 .lrow{display:grid;grid-template-columns:5.2em 1fr;gap:.6rem;padding:.35rem .25rem;border-radius:6px}
 .lrow.active{background:var(--bg)}
 .lrow .lt{font:500 .78rem Figtree,sans-serif;color:var(--muted);font-variant-numeric:tabular-nums;padding-top:.35rem}
@@ -74,6 +75,14 @@ label.chk{display:flex;gap:.4rem;align-items:center;font-size:.9rem}
 .pad button{flex:1;padding:1rem .5rem;font-weight:700}
 @media (hover:none){.pad{display:flex}}
 #status{font-size:.85rem;color:var(--muted);min-height:1.3em}
+
+.tl-wrap{max-width:1300px;margin:.6rem auto 0}
+#tl{display:block;width:100%;height:150px;border:1px solid var(--line);border-radius:8px;touch-action:none;cursor:grab;background:var(--bg)}
+.tl-ctl{display:flex;flex-wrap:wrap;gap:.4rem .6rem;align-items:center;margin-top:.4rem;font-size:.8rem;color:var(--muted)}
+.tl-ctl button{padding:.15rem .6rem;font-size:.85rem}
+.tl-ctl button[aria-pressed=true]{border-color:var(--cursor);color:var(--cursor)}
+#tlInfo{margin-left:auto;font-variant-numeric:tabular-nums;color:var(--ink);font-weight:500}
+@media (max-width:700px){#tl{height:120px}.tl-hint{display:none}}
 @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
 </style>
 </head>
@@ -92,6 +101,17 @@ label.chk{display:flex;gap:.4rem;align-items:center;font-size:.9rem}
       <input id="offset" type="number" step="10" value="80"> ms
     </label>
   </div>
+  <div class="tl-wrap">
+    <canvas id="tl" aria-label="Timeline: drag notches to adjust timing"></canvas>
+    <div class="tl-ctl">
+      <button id="zoomOut" aria-label="Zoom out">−</button>
+      <button id="zoomIn" aria-label="Zoom in">+</button>
+      <button id="zoomFit">Fit</button>
+      <button id="followBtn" aria-pressed="true">Follow playhead</button>
+      <span class="tl-hint">Scroll to zoom · Shift+scroll or drag to pan · drag a notch to move it · <kbd>,</kbd> <kbd>.</kbd> nudge 10 ms (Shift 100 ms) · <kbd>[</kbd> <kbd>]</kbd> prev/next notch · <kbd>Del</kbd> clear</span>
+      <span id="tlInfo"></span>
+    </div>
+  </div>
 </header>
 
 <main>
@@ -103,7 +123,7 @@ label.chk{display:flex;gap:.4rem;align-items:center;font-size:.9rem}
       <kbd>Backspace</kbd> undo &nbsp;
       <kbd>P</kbd> play/pause &nbsp;
       <kbd>←</kbd><kbd>→</kbd> ±2 s &nbsp;
-      Click a word to jump there; <kbd>Shift</kbd>+click to re-stamp it at the playhead.
+      Click a word to jump there and select it on the timeline; <kbd>Shift</kbd>+click to re-stamp it at the playhead.
     </p>
     <div id="lyrics"><div class="empty">Paste lyrics on the right and press Load lyrics.</div></div>
     <div class="pad">
@@ -117,7 +137,7 @@ label.chk{display:flex;gap:.4rem;align-items:center;font-size:.9rem}
   <div class="side">
     <section>
       <h2>Lyrics in</h2>
-      <p class="hint">Plain text or LRC. Existing timestamps are stripped; [ar:], [ti:], [al:] tags are kept. Words are split into syllables automatically. A word you write with <kbd>/</kbd> (e.g. <code>ev/er/more</code>) is split exactly where you put them.</p>
+      <p class="hint">Plain text, LRC or enhanced LRC. Word stamps like <code>&lt;00:02.63&gt;</code> are kept, so you can pick up where you left off; [ar:], [ti:], [al:] tags are kept too. Words are split into syllables automatically. A word you write with <kbd>/</kbd> (e.g. <code>ev/er/more</code>) is split exactly where you put them.</p>
       <textarea id="src" rows="10" spellcheck="false" placeholder="[ti:Song]&#10;[00:02.63]First line of lyrics&#10;…"></textarea>
       <div class="row">
         <button id="loadBtn" class="primary">Load lyrics</button>
@@ -259,6 +279,20 @@ label.chk{display:flex;gap:.4rem;align-items:center;font-size:.9rem}
     return out;
   }
 
+  const TAG = /<(\d+:\d+(?:\.\d+)?)>/g;
+
+  // Split a line into [{t, text}] chunks at enhanced-LRC <mm:ss.xx> tags.
+  function chunks(text){
+    const out = []; let last = 0, t = null, m;
+    TAG.lastIndex = 0;
+    while ((m = TAG.exec(text))){
+      out.push({t, text: text.slice(last, m.index)});
+      t = parseTs(m[1]); last = m.index + m[0].length;
+    }
+    out.push({t, text: text.slice(last)});
+    return out;
+  }
+
   function parse(src){
     meta = []; lines = [];
     const splitCjk = $('cjk').checked, autoSyl = $('autoSyl').checked;
@@ -267,12 +301,43 @@ label.chk{display:flex;gap:.4rem;align-items:center;font-size:.9rem}
       if (!line) return;
       if (/^\[[a-z#]+:.*\]$/i.test(line) && !/^\[\d/.test(line)) { meta.push(line); return; }
       const first = line.match(/^\[(\d+:\d+(?:\.\d+)?)\]/);
-      const text = line.replace(/\[\d+:\d+(?:\.\d+)?\]/g,'').replace(/<\d+:\d+(?:\.\d+)?>/g,'').trim();
-      if (!text) return;
-      const words = tokenize(text, splitCjk, autoSyl);
-      if (words.length) lines.push({orig: first ? parseTs(first[1]) : null, words, end:null});
+      const body = line.replace(/\[\d+:\d+(?:\.\d+)?\]/g,'');
+      if (!body.replace(TAG,'').trim()) return;
+      let words = [], end = null;
+      if (!/<\d+:\d+(?:\.\d+)?>/.test(body)){
+        words = tokenize(body, splitCjk, autoSyl);
+      } else {
+        // Enhanced LRC: keep each stamped piece as one unit with its time
+        chunks(body).forEach(c => {
+          if (!c.text.trim()){
+            if (c.t != null && words.length) end = c.t;           // trailing tag = line end
+            if (/\s/.test(c.text) && words.length) words[words.length-1].space = true;
+            return;
+          }
+          const trailing = /\s$/.test(c.text);
+          const toks = (c.t != null && !/\s/.test(c.text.trim()) && !c.text.includes('/'))
+            ? [{text: c.text.trim(), space: false, t: null}]
+            : tokenize(c.text, splitCjk, autoSyl);
+          if (!toks.length) return;
+          if (/^\s/.test(c.text) && words.length) words[words.length-1].space = true;
+          toks[0].t = c.t;
+          toks[toks.length-1].space = trailing;
+          words.push(...toks);
+        });
+        if (words.length) words[words.length-1].space = false;
+      }
+      if (words.length) lines.push({orig: first ? parseTs(first[1]) : null, words, end});
     });
-    cur = {li:0, wi:0}; history = [];
+    history = [];
+    cur = firstUnstamped();
+  }
+
+  function firstUnstamped(){
+    for (let li = 0; li < lines.length; li++){
+      const wi = lines[li].words.findIndex(w => w.t == null);
+      if (wi >= 0) return {li, wi};
+    }
+    return lines.length ? {li: lines.length-1, wi: lines[lines.length-1].words.length} : {li:0, wi:0};
   }
 
   // ---------- persistence ----------
@@ -381,10 +446,11 @@ label.chk{display:flex;gap:.4rem;align-items:center;font-size:.9rem}
     const h = history.pop();
     if (!h){ status('Nothing to undo.'); return; }
     const target = h.kind === 'w' ? lines[h.li].words[h.wi] : lines[h.li];
+    if (h.noSeek) sel = {li: h.li, wi: h.kind === 'w' ? h.wi : lines[h.li].words.length};
     const key = h.kind === 'w' ? 't' : 'end';
     const was = target[key];
     target[key] = h.prev; cur = h.cur;
-    if (was != null) audio.currentTime = Math.max(0, was - 1.5);
+    if (was != null && !h.noSeek) audio.currentTime = Math.max(0, was - 1.5);
     refresh();
   }
 
@@ -399,11 +465,13 @@ label.chk{display:flex;gap:.4rem;align-items:center;font-size:.9rem}
       r.readAsDataURL(file);
     };
     audio.src = url;
+    decodeWave(file);
     status('Loaded ' + file.name);
   }
   audio.addEventListener('loadedmetadata', () => {
     $('seek').max = audio.duration || 1; $('seek').disabled = false; $('playBtn').disabled = false;
     audio.playbackRate = +$('rate').value;
+    clampView();
   });
   audio.addEventListener('play', () => $('playBtn').textContent = 'Pause');
   audio.addEventListener('pause', () => $('playBtn').textContent = 'Play');
@@ -425,8 +493,308 @@ label.chk{display:flex;gap:.4rem;align-items:center;font-size:.9rem}
       if (idx >= 0 && !audio.paused) flat[idx].w.el.classList.add('sung');
       activeIdx = idx;
     }
+    drawTimeline();
     requestAnimationFrame(tick);
   }
+
+  // ---------- timeline ----------
+  const tl = $('tl'), tctx = tl.getContext('2d');
+  const view = {start: 0, pps: 80, follow: true};
+  const PPS_MAX = 3000;
+  let wave = null, sel = null, hover = null, drag = null, panning = null, pinch = null, moved = false;
+  const pointers = new Map();
+
+  const dur = () => audio.duration || (wave ? wave.data.length / wave.sr : 0) || 0;
+  const x2t = x => view.start + x / view.pps;
+  const t2x = t => (t - view.start) * view.pps;
+  const isEndSlot = (li, wi) => wi >= lines[li].words.length;
+  const getT = (li, wi) => isEndSlot(li, wi) ? lines[li].end : lines[li].words[wi].t;
+  const setT = (li, wi, t) => { if (isEndSlot(li, wi)) lines[li].end = t; else lines[li].words[wi].t = t; };
+
+  function clampView(){
+    const d = dur(), w = tl.clientWidth || 1;
+    view.pps = Math.min(PPS_MAX, Math.max(d ? w / d : 5, view.pps));
+    view.start = Math.max(0, d ? Math.min(view.start, Math.max(0, d - w / view.pps)) : view.start);
+  }
+  function zoomAt(x, f){
+    const t = x2t(x);
+    view.pps = Math.min(PPS_MAX, view.pps * f);
+    clampView();
+    view.start = t - x / view.pps; clampView();
+  }
+  function reveal(t){
+    const w = tl.clientWidth, a = t2x(t);
+    if (a < 20 || a > w - 20) { view.start = t - (w / view.pps) * 0.3; clampView(); }
+  }
+
+  // ordered list of every stamp, in lyric order
+  function events(){
+    const ev = [];
+    lines.forEach((l, li) => {
+      l.words.forEach((w, wi) => { if (w.t != null) ev.push({li, wi, t: w.t, text: w.text, first: wi === 0}); });
+      if (l.end != null) ev.push({li, wi: l.words.length, t: l.end, end: true, text: ''});
+    });
+    return ev;
+  }
+  function bounds(li, wi){
+    const ev = events(), i = ev.findIndex(e => e.li === li && e.wi === wi);
+    const lo = i > 0 ? ev[i-1].t + 0.01 : 0;
+    const hi = i >= 0 && i + 1 < ev.length ? ev[i+1].t - 0.01 : (dur() || Infinity);
+    return [lo, Math.max(lo, hi)];
+  }
+  function hitTest(x){
+    let best = null, bd = 7;
+    events().forEach(e => { const d = Math.abs(t2x(e.t) - x); if (d <= bd) { bd = d; best = e; } });
+    return best;
+  }
+
+  async function decodeWave(file){
+    wave = null;
+    try {
+      const AC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+      const ctx = new AC(1, 1, 44100);
+      const ab = await file.arrayBuffer();
+      const buf = await new Promise((res, rej) => { const p = ctx.decodeAudioData(ab, res, rej); if (p && p.then) p.then(res, rej); });
+      const n = buf.length, ch = buf.numberOfChannels, data = new Float32Array(n);
+      for (let c = 0; c < ch; c++){ const d = buf.getChannelData(c); for (let i = 0; i < n; i++) data[i] += d[i] / ch; }
+      const B = 256, nb = Math.ceil(n / B), bins = new Float32Array(nb * 2);
+      let peak = 0;
+      for (let b = 0; b < nb; b++){
+        let lo = 0, hi = 0; const e = Math.min(n, (b + 1) * B);
+        for (let i = b * B; i < e; i++){ const v = data[i]; if (v < lo) lo = v; if (v > hi) hi = v; }
+        bins[2*b] = lo; bins[2*b+1] = hi; peak = Math.max(peak, -lo, hi);
+      }
+      wave = {sr: buf.sampleRate, data, bins, B, peak: peak || 1};
+      clampView();
+    } catch(e){ status('The waveform could not be drawn for this file, but tapping and the timeline still work.'); }
+  }
+
+  function selInfo(){
+    if (!sel || !lines[sel.li]) return '';
+    const t = getT(sel.li, sel.wi);
+    const what = isEndSlot(sel.li, sel.wi) ? `End of line ${sel.li + 1}` : `“${lines[sel.li].words[sel.wi].text}”`;
+    return `${what} · ${t != null ? fmt(t) : 'not stamped'}`;
+  }
+
+  function drawTimeline(){
+    const w = tl.clientWidth, h = tl.clientHeight, dpr = window.devicePixelRatio || 1;
+    if (!w || !h) return;
+    if (tl.width !== Math.round(w * dpr) || tl.height !== Math.round(h * dpr)){ tl.width = Math.round(w * dpr); tl.height = Math.round(h * dpr); }
+    const playT = audio.currentTime || 0;
+    if (view.follow && !audio.paused && !drag && !panning){
+      const span = w / view.pps;
+      if (playT > view.start + span * 0.85 || playT < view.start) view.start = playT - span * 0.15;
+    }
+    clampView();
+    const cs = getComputedStyle(document.documentElement), c = n => cs.getPropertyValue(n).trim();
+    const C = {bg:c('--bg'), line:c('--line'), muted:c('--muted'), ink:c('--ink'), done:c('--done'), cur:c('--cursor'), sung:c('--sung'), todo:c('--todo')};
+    const g = tctx;
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g.fillStyle = C.bg; g.fillRect(0, 0, w, h);
+    const RUL = 18, LAB = 30, wTop = RUL, wH = h - RUL - LAB, mid = wTop + wH / 2;
+
+    // ruler + grid
+    const steps = [0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1, 2, 5, 10, 15, 30, 60];
+    const step = steps.find(s => s * view.pps >= 70) || 60;
+    g.font = '11px Figtree, system-ui, sans-serif'; g.textBaseline = 'middle'; g.lineWidth = 1;
+    for (let k = Math.floor(view.start / step); k * step <= x2t(w); k++){
+      const t = k * step, x = Math.round(t2x(t)) + 0.5;
+      g.strokeStyle = C.line; g.beginPath(); g.moveTo(x, 0); g.lineTo(x, h); g.stroke();
+      g.fillStyle = C.muted; g.fillText(step < 1 ? fmt(t) : fmt(t).slice(0, 5), x + 3, RUL / 2);
+    }
+    g.strokeStyle = C.line; g.beginPath(); g.moveTo(0, RUL + .5); g.lineTo(w, RUL + .5); g.moveTo(0, h - LAB + .5); g.lineTo(w, h - LAB + .5); g.stroke();
+
+    // waveform
+    if (wave){
+      g.fillStyle = C.todo; g.globalAlpha = 0.6;
+      const amp = (wH / 2) * 0.92 / wave.peak, spp = wave.sr / view.pps, N = wave.data.length;
+      for (let x = 0; x < w; x++){
+        const s0 = Math.floor(x2t(x) * wave.sr), s1 = Math.max(s0 + 1, Math.floor(x2t(x + 1) * wave.sr));
+        if (s0 >= N) break; if (s1 <= 0) continue;
+        let lo = 0, hi = 0;
+        if (spp >= wave.B * 2){
+          const b0 = Math.max(0, Math.floor(s0 / wave.B)), b1 = Math.min(wave.bins.length / 2, Math.ceil(s1 / wave.B));
+          for (let b = b0; b < b1; b++){ if (wave.bins[2*b] < lo) lo = wave.bins[2*b]; if (wave.bins[2*b+1] > hi) hi = wave.bins[2*b+1]; }
+        } else {
+          for (let i = Math.max(0, s0), e = Math.min(N, s1); i < e; i++){ const v = wave.data[i]; if (v < lo) lo = v; if (v > hi) hi = v; }
+        }
+        g.fillRect(x, mid - hi * amp, 1, Math.max(1, (hi - lo) * amp));
+      }
+      g.globalAlpha = 1;
+    } else {
+      g.fillStyle = C.muted; g.textAlign = 'center';
+      g.fillText(audio.src ? 'Reading waveform…' : 'Open an audio file to see its waveform', w / 2, mid);
+      g.textAlign = 'left';
+    }
+
+    // line spans in the label lane (start → end, or → next line's start)
+    g.globalAlpha = 0.12; g.fillStyle = C.done;
+    lines.forEach((l, li) => {
+      const st = l.words[0].t; if (st == null) return;
+      const en = l.end ?? (lines[li+1] && lines[li+1].words[0].t);
+      if (en == null) return;
+      const a = t2x(st), b = t2x(en);
+      if (b < 0 || a > w) return;
+      g.fillRect(a, h - LAB + 1, b - a, LAB - 1);
+    });
+    g.globalAlpha = 1;
+
+    // notches
+    const ev = events();
+    g.textBaseline = 'middle';
+    ev.forEach((e, i) => {
+      const x = t2x(e.t); if (x < -300 || x > w + 2) return;
+      const xx = Math.round(x) + 0.5;
+      const isSel = sel && sel.li === e.li && sel.wi === e.wi;
+      const isHov = hover && hover.li === e.li && hover.wi === e.wi;
+      const col = isSel ? C.cur : e.end ? C.sung : C.done;
+      g.strokeStyle = col; g.fillStyle = col; g.lineWidth = isSel || isHov ? 2 : 1;
+      g.beginPath(); g.moveTo(xx, RUL); g.lineTo(xx, h); g.stroke();
+      if (e.end){
+        g.beginPath(); g.moveTo(xx, RUL); g.lineTo(xx - 7, RUL); g.lineTo(xx, RUL + 7); g.fill();
+      } else if (e.first){
+        g.fillRect(xx, RUL, 7, 7);
+      } else {
+        g.beginPath(); g.moveTo(xx - 4, RUL); g.lineTo(xx + 4, RUL); g.lineTo(xx, RUL + 6); g.fill();
+      }
+      if (!e.end){
+        let nx = w; for (let j = i + 1; j < ev.length; j++){ if (ev[j].t > e.t){ nx = t2x(ev[j].t); break; } }
+        const room = nx - x - 5;
+        if (room > 6){
+          g.save(); g.beginPath(); g.rect(x + 3, h - LAB, room, LAB); g.clip();
+          g.font = (e.first ? '700 ' : '') + '13px "Noto Sans JP", Figtree, sans-serif';
+          g.fillStyle = isSel ? C.cur : C.ink;
+          g.fillText(e.text, x + 4, h - LAB / 2);
+          g.restore();
+        }
+      }
+    });
+
+    // playhead
+    const px = Math.round(t2x(playT)) + 0.5;
+    if (px >= 0 && px <= w){ g.strokeStyle = C.ink; g.lineWidth = 1.5; g.beginPath(); g.moveTo(px, 0); g.lineTo(px, h); g.stroke(); }
+
+    const info = selInfo(); if ($('tlInfo').textContent !== info) $('tlInfo').textContent = info;
+    $('followBtn').setAttribute('aria-pressed', view.follow);
+  }
+
+  tl.addEventListener('pointerdown', e => {
+    tl.setPointerCapture(e.pointerId);
+    pointers.set(e.pointerId, e.offsetX);
+    if (pointers.size === 2){
+      const [a, b] = [...pointers.values()];
+      pinch = {d: Math.abs(a - b) || 1, pps: view.pps, t: x2t((a + b) / 2)};
+      if (drag){ setT(drag.li, drag.wi, drag.prev); drag = null; } panning = null;
+      return;
+    }
+    moved = false;
+    const hit = hitTest(e.offsetX);
+    if (hit){
+      sel = {li: hit.li, wi: hit.wi};
+      const [lo, hi] = bounds(hit.li, hit.wi);
+      drag = {li: hit.li, wi: hit.wi, prev: hit.t, lo, hi, x0: e.offsetX};
+    } else panning = {x0: e.offsetX, s0: view.start};
+  });
+  tl.addEventListener('pointermove', e => {
+    if (pointers.has(e.pointerId)) pointers.set(e.pointerId, e.offsetX);
+    if (pinch && pointers.size === 2){
+      const [a, b] = [...pointers.values()], m = (a + b) / 2;
+      view.pps = Math.min(PPS_MAX, pinch.pps * (Math.abs(a - b) || 1) / pinch.d);
+      clampView(); view.start = pinch.t - m / view.pps; clampView();
+      return;
+    }
+    if (drag){
+      const dx = e.offsetX - drag.x0;
+      if (!moved && Math.abs(dx) < 3) return;
+      moved = true;
+      setT(drag.li, drag.wi, Math.min(drag.hi, Math.max(drag.lo, drag.prev + dx / view.pps)));
+      refresh(false);
+    } else if (panning){
+      const dx = e.offsetX - panning.x0;
+      if (!moved && Math.abs(dx) < 3) return;
+      moved = true; view.follow = false;
+      view.start = panning.s0 - dx / view.pps; clampView();
+    } else {
+      hover = hitTest(e.offsetX);
+      tl.style.cursor = hover ? 'ew-resize' : 'grab';
+    }
+  });
+  function endPointer(e){
+    pointers.delete(e.pointerId);
+    if (pinch){ if (pointers.size < 2) pinch = null; drag = panning = null; return; }
+    if (drag){
+      const now_ = getT(drag.li, drag.wi);
+      if (moved && now_ !== drag.prev){
+        history.push({kind: isEndSlot(drag.li, drag.wi) ? 'e' : 'w', li: drag.li, wi: drag.wi, prev: drag.prev, cur: {...cur}, noSeek: true});
+        refresh(false);
+      } else if (!moved && audio.src){
+        audio.currentTime = Math.max(0, drag.prev - 0.5);   // click a notch: select it and cue just before it
+        refresh(false);
+      }
+    } else if (panning && !moved){
+      sel = null;
+      if (audio.src) audio.currentTime = Math.max(0, Math.min(dur(), x2t(e.offsetX)));
+    }
+    drag = panning = null;
+  }
+  tl.addEventListener('pointerup', endPointer);
+  tl.addEventListener('pointercancel', endPointer);
+  tl.addEventListener('pointerleave', () => { if (!drag && !panning) hover = null; });
+  tl.addEventListener('wheel', e => {
+    e.preventDefault();
+    const horizontal = e.shiftKey || Math.abs(e.deltaX) > Math.abs(e.deltaY);
+    if (e.ctrlKey || e.metaKey) zoomAt(e.offsetX, Math.exp(-e.deltaY * 0.01));        // trackpad pinch
+    else if (horizontal){ view.start += (e.deltaX || e.deltaY) / view.pps; view.follow = false; clampView(); }
+    else zoomAt(e.offsetX, Math.exp(-e.deltaY * 0.0015));
+  }, {passive: false});
+
+  const zoomCenter = () => { const px = t2x(audio.currentTime || 0), w = tl.clientWidth; return px >= 0 && px <= w ? px : w / 2; };
+  $('zoomIn').addEventListener('click', () => zoomAt(zoomCenter(), 1.6));
+  $('zoomOut').addEventListener('click', () => zoomAt(zoomCenter(), 1 / 1.6));
+  $('zoomFit').addEventListener('click', () => { view.pps = 0; view.start = 0; clampView(); });
+  $('followBtn').addEventListener('click', () => { view.follow = !view.follow; });
+  document.querySelectorAll('.tl-ctl button').forEach(b => b.addEventListener('mousedown', e => e.preventDefault()));
+
+  let lastNudge = 0;
+  function nudge(d){
+    if (!sel) return;
+    const t = getT(sel.li, sel.wi); if (t == null) return;
+    const [lo, hi] = bounds(sel.li, sel.wi);
+    const top = history[history.length - 1];
+    if (!(top && top.nudge && top.li === sel.li && top.wi === sel.wi && Date.now() - lastNudge < 1500))
+      history.push({kind: isEndSlot(sel.li, sel.wi) ? 'e' : 'w', li: sel.li, wi: sel.wi, prev: t, cur: {...cur}, noSeek: true, nudge: true});
+    lastNudge = Date.now();
+    setT(sel.li, sel.wi, Math.round(Math.min(hi, Math.max(lo, t + d)) * 100) / 100);
+    reveal(getT(sel.li, sel.wi));
+    refresh(false);
+  }
+  function stepSel(dir){
+    const ev = events(); if (!ev.length) return;
+    let i = sel ? ev.findIndex(e => e.li === sel.li && e.wi === sel.wi) : -1;
+    i = i < 0 ? (dir > 0 ? 0 : ev.length - 1) : Math.min(ev.length - 1, Math.max(0, i + dir));
+    sel = {li: ev[i].li, wi: ev[i].wi}; reveal(ev[i].t);
+    if (audio.src && audio.paused) audio.currentTime = Math.max(0, ev[i].t - 0.5);
+  }
+  function clearSel(){
+    if (!sel) return;
+    const t = getT(sel.li, sel.wi); if (t == null) return;
+    history.push({kind: isEndSlot(sel.li, sel.wi) ? 'e' : 'w', li: sel.li, wi: sel.wi, prev: t, cur: {...cur}, noSeek: true});
+    setT(sel.li, sel.wi, null); refresh(false);
+  }
+  function timelineKey(e){
+    switch (e.code){
+      case 'Comma': nudge(e.shiftKey ? -0.1 : -0.01); return true;
+      case 'Period': nudge(e.shiftKey ? 0.1 : 0.01); return true;
+      case 'BracketLeft': stepSel(-1); return true;
+      case 'BracketRight': stepSel(1); return true;
+      case 'Delete': clearSel(); return true;
+      case 'Escape': sel = null; return true;
+      case 'Equal': case 'NumpadAdd': zoomAt(zoomCenter(), 1.6); return true;
+      case 'Minus': case 'NumpadSubtract': zoomAt(zoomCenter(), 1 / 1.6); return true;
+    }
+    return false;
+  }
+
   requestAnimationFrame(tick);
 
   // ---------- events ----------
@@ -456,6 +824,7 @@ label.chk{display:flex;gap:.4rem;align-items:center;font-size:.9rem}
     $('src').value = src.split(/\r?\n/).map(line => {
       const t = line.trim();
       if (/^\[[a-z#]+:.*\]$/i.test(t) && !/^\[\d/.test(t)) return line;
+      if (/<\d+:\d+(?:\.\d+)?>/.test(line)) return line;   // already stamped: leave its pieces alone
       const m = line.match(/^((?:\s*\[\d+:\d+(?:\.\d+)?\])*)(.*)$/);
       const text = m[2].replace(/<\d+:\d+(?:\.\d+)?>/g, '');
       return m[1] + text.split(/(\s+)/).map(tok =>
@@ -473,11 +842,14 @@ label.chk{display:flex;gap:.4rem;align-items:center;font-size:.9rem}
   $('lyrics').addEventListener('click', e => {
     const el = e.target.closest('[data-wi]'); if (!el) return;
     const li = +el.dataset.li, wi = +el.dataset.wi, l = lines[li];
+    if (e.shiftKey) sel = {li, wi};
     if (e.shiftKey && wi < l.words.length){
       const w = l.words[wi]; history.push({kind:'w', li, wi, prev:w.t, cur:{...cur}}); w.t = now(); refresh(false); return;
     }
     if (e.shiftKey){ history.push({kind:'e', li, prev:l.end, cur:{...cur}}); l.end = now(); refresh(false); return; }
     cur = {li, wi};
+    sel = {li, wi};
+    { const st = getT(li, wi); if (st != null) reveal(st); }
     // jump to just before this point so you can re-tap from here
     let ref = wi < l.words.length ? l.words[wi].t : l.end;
     if (ref == null){ for (let i = flat.findIndex(f => f.li===li && f.wi===Math.min(wi, l.words.length-1)); i >= 0; i--){ if (flat[i].w.t != null){ ref = flat[i].w.t; break; } } }
@@ -494,6 +866,7 @@ label.chk{display:flex;gap:.4rem;align-items:center;font-size:.9rem}
     const tag = (e.target.tagName || '').toLowerCase();
     if (tag === 'textarea' || (tag === 'input' && e.target.type !== 'range' && e.target.type !== 'checkbox' && e.target.type !== 'file')) return;
     if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (timelineKey(e)) { e.preventDefault(); return; }
     switch (e.key){
       case ' ': e.preventDefault(); if (!e.repeat) tap(); break;
       case 'Enter': e.preventDefault(); if (!e.repeat) lineEnd(); break;
@@ -519,3 +892,5 @@ label.chk{display:flex;gap:.4rem;align-items:center;font-size:.9rem}
 </script>
 </body>
 </html>
+
+</body></html>
